@@ -1,4 +1,4 @@
-// app.js
+ฟ// app.js
 // ไฟล์หลักของ Backend สำหรับระบบเช็คชื่อนักเรียน
 
 // นำเข้าโมดูลที่จำเป็น
@@ -76,8 +76,24 @@ const app = express();
 // กำหนด Port ที่ Backend จะรัน โดยอ่านจาก Environment Variable หรือใช้ค่าเริ่มต้น
 const PORT = process.env.PORT || 3000; 
 
-// Middleware (ซอฟต์แวร์กลางที่ประมวลผล Request ก่อนถึง Route)
-app.use(cors()); // อนุญาตให้ Frontend (ที่อาจอยู่คนละ Domain) สามารถเรียกใช้ Backend ได้
+// ดึงค่า ALLOWED_ORIGINS จาก Environment Variable สำหรับ CORS
+// หากมีหลาย Origin ให้แยกด้วยคอมม่า (,) ใน .env เช่น ALLOWED_ORIGINS=https://domain1.com,https://domain2.com
+const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : [];
+
+// Middleware
+// ตั้งค่า CORS เพื่ออนุญาตเฉพาะ Origin ที่กำหนด
+app.use(cors({
+    origin: (origin, callback) => {
+        // อนุญาต Request ที่ไม่มี Origin (เช่น จาก Postman หรือ curl)
+        if (!origin) return callback(null, true);
+        // ตรวจสอบว่า Origin ที่เข้ามาอยู่ในรายการที่อนุญาตหรือไม่
+        if (ALLOWED_ORIGINS.indexOf(origin) === -1) {
+            const msg = `The CORS policy for this site does not allow access from the specified Origin: ${origin}`;
+            return callback(new Error(msg), false);
+        }
+        return callback(null, true);
+    }
+}));
 app.use(bodyParser.json()); // สำหรับ Parse JSON body ของ Request ที่เข้ามา
 
 // --- 4. API Endpoints (Routes) ---
