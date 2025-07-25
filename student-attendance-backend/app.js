@@ -1,50 +1,61 @@
 // app.js
+// ไฟล์หลักของ Backend สำหรับระบบเช็คชื่อนักเรียน
+
+// นำเข้าโมดูลที่จำเป็น
 const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
-const { Client, middleware } = require('@line/bot-sdk');
-const admin = require('firebase-admin');
-require('dotenv').config(); // โหลด Environment Variables จาก .env file
+const { Client, middleware } = require('@line/bot-sdk'); // LINE Bot SDK
+const admin = require('firebase-admin'); // Firebase Admin SDK
+require('dotenv').config(); // โหลด Environment Variables จากไฟล์ .env (สำหรับการรันในเครื่อง)
 
-// --- 1. Firebase Admin SDK Initialization ---
-// การตั้งค่า Service Account Key:
+// --- 1. การตั้งค่าและเริ่มต้น Firebase Admin SDK ---
+// ส่วนนี้จัดการการโหลด Service Account Key
 // - หากรันบน Render/Cloud: จะอ่านค่าจาก Environment Variable ชื่อ FIREBASE_SERVICE_ACCOUNT_KEY
 // - หากรันในเครื่อง (Local): จะอ่านจากไฟล์ JSON ที่ระบุ Path ไว้
-const serviceAccountLocalPath = './your-project-name-firebase-adminsdk-xxxxx-xxxxxxxxxx.json'; // *** สำคัญ: เปลี่ยนชื่อไฟล์นี้ให้ตรงกับที่คุณดาวน์โหลดมาจริงๆ ***
+const serviceAccountLocalPath = './your-project-name-firebase-adminsdk-xxxxx-xxxxxxxxxx.json'; 
+// *** สำคัญ: เปลี่ยนชื่อไฟล์นี้ให้ตรงกับชื่อไฟล์ Service Account Key ที่คุณดาวน์โหลดมาจริงๆ ***
+// ตัวอย่าง: './service-b6c91-firebase-adminsdk-fbsvc-bd63ab59b8.json'
 
-let serviceAccount;
+let serviceAccount; // ตัวแปรสำหรับเก็บข้อมูล Service Account Key
 
+// ตรวจสอบว่ามี Environment Variable 'FIREBASE_SERVICE_ACCOUNT_KEY' หรือไม่
 if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
-  // กรณีรันบน Render หรือ Cloud ที่มีการตั้งค่า Environment Variable นี้
+  // หากมี (แสดงว่ารันบน Render หรือ Cloud)
   try {
+    // แปลง JSON String จาก Environment Variable กลับเป็น JavaScript Object
     serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
     console.log("Using Firebase Service Account from environment variable.");
   } catch (e) {
+    // หากเกิดข้อผิดพลาดในการ Parse JSON String
     console.error("Failed to parse FIREBASE_SERVICE_ACCOUNT_KEY environment variable:", e);
-    process.exit(1); // หยุดการทำงานหากไม่สามารถอ่านค่าได้
+    process.exit(1); // หยุดการทำงานของโปรแกรม
   }
 } else {
-  // กรณีรันในเครื่อง (Local) และไม่มี Environment Variable
+  // หากไม่มี Environment Variable (แสดงว่ารันในเครื่อง Local)
   try {
+    // โหลด Service Account Key จากไฟล์ JSON ในเครื่อง
     serviceAccount = require(serviceAccountLocalPath);
     console.log(`Using Firebase Service Account from local file: ${serviceAccountLocalPath}`);
   } catch (e) {
+    // หากเกิดข้อผิดพลาดในการโหลดไฟล์
     console.error(`Error: Could not load local Firebase Service Account file at ${serviceAccountLocalPath}`);
     console.error("Please ensure the file exists and the path is correct in app.js.");
     console.error("If deploying to cloud, remember to set FIREBASE_SERVICE_ACCOUNT_KEY environment variable.");
-    process.exit(1); // หยุดการทำงานหากไม่สามารถโหลดไฟล์ได้
+    process.exit(1); // หยุดการทำงานของโปรแกรม
   }
 }
 
-// Initialize Firebase Admin SDK
+// เริ่มต้น Firebase Admin SDK ด้วยข้อมูล Service Account Key ที่ได้มา
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount)
 });
 
 const db = admin.firestore(); // กำหนด Firestore instance เพื่อใช้งาน
-const CLASS_TO_TRACK = process.env.CLASS_TO_TRACK || 'ม.1/10'; // ชั้นเรียนที่ต้องการติดตาม (ค่าเริ่มต้น ม.1/10)
+// กำหนดชั้นเรียนที่ระบบจะติดตาม โดยอ่านจาก Environment Variable หรือใช้ค่าเริ่มต้น
+const CLASS_TO_TRACK = process.env.CLASS_TO_TRACK || 'ม.1/10'; 
 
-// --- 2. LINE Bot SDK Configuration ---
+// --- 2. การตั้งค่า LINE Bot SDK ---
 // ตรวจสอบว่า Environment Variables สำหรับ LINE ถูกตั้งค่าหรือไม่
 if (!process.env.LINE_CHANNEL_ACCESS_TOKEN || !process.env.LINE_CHANNEL_SECRET) {
     console.error('LINE_CHANNEL_ACCESS_TOKEN or LINE_CHANNEL_SECRET is not set in environment variables.');
@@ -52,6 +63,7 @@ if (!process.env.LINE_CHANNEL_ACCESS_TOKEN || !process.env.LINE_CHANNEL_SECRET) 
     process.exit(1); // หยุดการทำงานหากไม่มีค่าที่จำเป็น
 }
 
+// กำหนดค่าคอนฟิกสำหรับ LINE Bot SDK
 const lineConfig = {
     channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN,
     channelSecret: process.env.LINE_CHANNEL_SECRET,
@@ -59,11 +71,12 @@ const lineConfig = {
 
 const lineClient = new Client(lineConfig); // สร้าง LINE client instance สำหรับส่ง/รับข้อความ
 
-// --- 3. Express App Setup ---
+// --- 3. การตั้งค่า Express App ---
 const app = express();
-const PORT = process.env.PORT || 3000; // ใช้ PORT จาก .env หรือใช้ 3000 เป็นค่าเริ่มต้น
+// กำหนด Port ที่ Backend จะรัน โดยอ่านจาก Environment Variable หรือใช้ค่าเริ่มต้น
+const PORT = process.env.PORT || 3000; 
 
-// Middleware
+// Middleware (ซอฟต์แวร์กลางที่ประมวลผล Request ก่อนถึง Route)
 app.use(cors()); // อนุญาตให้ Frontend (ที่อาจอยู่คนละ Domain) สามารถเรียกใช้ Backend ได้
 app.use(bodyParser.json()); // สำหรับ Parse JSON body ของ Request ที่เข้ามา
 
@@ -98,7 +111,7 @@ app.post('/api/line-webhook', middleware(lineConfig), async (req, res) => {
                         timestamp: admin.firestore.FieldValue.serverTimestamp()
                     }, { merge: true }); // merge: true เพื่ออัปเดตถ้ามีอยู่แล้ว
                     console.log(`Saved userId: ${userId} to Firestore.`);
-                    // ส่งข้อความต้อนรับ
+                    // ส่งข้อความต้อนรับกลับไปให้ผู้ใช้
                     return lineClient.replyMessage(event.replyToken, {
                         type: 'text',
                         text: 'ยินดีต้อนรับสู่ระบบเช็คชื่อครับ! หากมีข้อสงสัยติดต่อครูประจำชั้นได้เลยครับ'
@@ -133,7 +146,7 @@ app.post('/api/line-webhook', middleware(lineConfig), async (req, res) => {
             }
             // เพิ่มเงื่อนไขสำหรับ event type อื่นๆ ที่คุณต้องการจัดการได้ที่นี่
         }));
-        res.status(200).send('Events processed.'); // ส่ง 200 OK กลับไปให้ LINE
+        res.status(200).send('Events processed.'); // ส่ง 200 OK กลับไปให้ LINE Platform
     } catch (err) {
         console.error('Error processing LINE webhook events:', err);
         res.status(500).end(); // ส่ง Error กลับไปหากมีปัญหา
@@ -162,47 +175,51 @@ app.get('/api/attendance/students', async (req, res) => {
     }
 });
 
-// บันทึกสถานะการเช็คชื่อของนักเรียน (มา, ลา, ขาด)
+// บันทึกสถานะการเช็คชื่อของนักเรียน (มา, ลา, ขาด, สาย)
+// API นี้จะรับข้อมูลสถานะรวมของนักเรียนสำหรับวันนั้นๆ
 app.post('/api/attendance/record', async (req, res) => {
-    const { studentId, status } = req.body;
-    if (!studentId || !status) {
-        return res.status(400).json({ error: 'Student ID and status are required.' });
+    const { studentId, studentName, date, status, checkIns } = req.body; // รับ checkIns array เข้ามาด้วย
+    
+    if (!studentId || !date || !status || !studentName) {
+        return res.status(400).json({ message: 'Missing required fields: studentId, date, status, studentName' });
     }
 
+    const docId = `${studentId}-${date}`; // สร้าง Document ID สำหรับการเช็คชื่อรายวัน
+    const attendanceRef = db.collection('attendance').doc(docId);
+
     try {
-        const recordRef = db.collection('attendance').doc(); // ให้ Firestore สร้าง Document ID อัตโนมัติ
-        await recordRef.set({
-            studentId: studentId,
-            status: status,
-            timestamp: admin.firestore.FieldValue.serverTimestamp() // บันทึกเวลาจาก Server
-        });
-        res.status(200).json({ message: 'Attendance recorded successfully.' });
+        // Logic สำหรับการอัปเดตข้อมูลตามสถานะที่ได้รับ
+        if (status === 'มา') {
+            // ถ้าสถานะเป็น 'มา', ให้อัปเดต checkIns array
+            // เราจะใช้ checkIns array ที่ส่งมาจาก Frontend เป็นสถานะล่าสุดสำหรับ 'มา'
+            await attendanceRef.set({
+                studentId: studentId,
+                studentName: studentName,
+                date: date,
+                status: 'มา', // ตั้งสถานะเป็น 'มา' โดยตรง
+                checkIns: checkIns || [], // ใช้ array จาก Frontend (อาจจะว่างเปล่าถ้ายังไม่มีการเช็คอิน)
+                timestamp: admin.firestore.FieldValue.serverTimestamp() // บันทึกเวลาที่อัปเดต
+            }, { merge: true }); // merge: true เพื่อรวมข้อมูลกับ Document ที่มีอยู่แล้ว
+        } else {
+            // สำหรับ 'ลา', 'ขาด', 'สาย', ให้ล้าง checkIns และตั้งค่าสถานะ
+            await attendanceRef.set({
+                studentId: studentId,
+                studentName: studentName,
+                date: date,
+                status: status,
+                checkIns: [], // ล้าง checkIns สำหรับสถานะเหล่านี้
+                timestamp: admin.firestore.FieldValue.serverTimestamp()
+            }, { merge: true });
+        }
+
+        res.status(200).json({ message: 'Attendance recorded successfully!' });
+
     } catch (error) {
         console.error('Error recording attendance:', error);
-        res.status(500).json({ error: 'Failed to record attendance.' });
+        res.status(500).json({ message: 'Failed to record attendance', error: error.message });
     }
 });
 
-// บันทึกเวลาที่นักเรียนเช็คอิน/เช็คเอาต์ (สำหรับสถานะ 'มา' ที่มีเวลาเข้า/ออก)
-app.post('/api/attendance/record-checkin', async (req, res) => {
-    const { studentId, type } = req.body; // type: 'in' หรือ 'out'
-    if (!studentId || !type) {
-        return res.status(400).json({ error: 'Student ID and type (in/out) are required.' });
-    }
-
-    try {
-        const checkinRef = db.collection('checkins').doc(); // ให้ Firestore สร้าง Document ID อัตโนมัติ
-        await checkinRef.set({
-            studentId: studentId,
-            type: type,
-            timestamp: admin.firestore.FieldValue.serverTimestamp()
-        });
-        res.status(200).json({ message: `Check-${type} recorded successfully.` });
-    } catch (error) {
-        console.error(`Error recording check-${type}:`, error);
-        res.status(500).json({ error: `Failed to record check-${type}.` });
-    }
-});
 
 // สรุปผลการเช็คชื่อประจำวันและแจ้งเตือนผ่าน LINE Broadcast
 app.post('/api/attendance/summary-and-notify', async (req, res) => {
@@ -213,7 +230,7 @@ app.post('/api/attendance/summary-and-notify', async (req, res) => {
             .get();
         const allStudents = studentsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         // สร้าง Map เพื่อหาชื่อนักเรียนจาก ID ได้ง่ายขึ้น
-        const studentNames = new Map(allStudents.map(s => [s.id, s.name]));
+        const studentNamesMap = new Map(allStudents.map(s => [s.id, s.name]));
 
         // 2. ดึงสถานะการเช็คชื่อล่าสุดของแต่ละคนสำหรับวันนี้
         const today = new Date();
@@ -222,15 +239,15 @@ app.post('/api/attendance/summary-and-notify', async (req, res) => {
         tomorrow.setDate(tomorrow.getDate() + 1); // ตั้งค่าเวลาเริ่มต้นของวันพรุ่งนี้
 
         const attendanceSnapshot = await db.collection('attendance')
-            .where('timestamp', '>=', admin.firestore.Timestamp.fromDate(today))
-            .where('timestamp', '<', admin.firestore.Timestamp.fromDate(tomorrow))
+            .where('date', '==', `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`) // ใช้ date string ที่ Frontend ส่งมา
             .get();
 
         const latestStatus = {}; // เก็บสถานะล่าสุดของแต่ละ studentId
         attendanceSnapshot.docs.forEach(doc => {
             const data = doc.data();
             // ตรวจสอบว่ามีสถานะสำหรับนักเรียนคนนี้แล้วหรือไม่ หรือสถานะที่พบใหม่เป็นสถานะที่ใหม่กว่า
-            if (!latestStatus[data.studentId] || latestStatus[data.studentId].timestamp.toDate() < data.timestamp.toDate()) {
+            // (ในกรณีที่อาจมีการบันทึกซ้ำในวันเดียวกัน)
+            if (!latestStatus[data.studentId] || (data.timestamp && latestStatus[data.studentId].timestamp && latestStatus[data.studentId].timestamp.toDate() < data.timestamp.toDate())) {
                 latestStatus[data.studentId] = data;
             }
         });
@@ -240,24 +257,31 @@ app.post('/api/attendance/summary-and-notify', async (req, res) => {
             'มา': [],
             'ลา': [],
             'ขาด': [],
+            'สาย': [], // เพิ่มสถานะ 'สาย' เข้ามา
             'ยังไม่เช็คชื่อ': [] // สำหรับนักเรียนที่ไม่มีสถานะบันทึกไว้ในวันนี้เลย
         };
 
         allStudents.forEach(student => {
             const statusRecord = latestStatus[student.id];
-            if (statusRecord) {
-                summary[statusRecord.status].push(student.name);
+            if (statusRecord && statusRecord.status) {
+                // ตรวจสอบว่ามี checkIns สำหรับสถานะ 'มา' หรือไม่
+                if (statusRecord.status === 'มา' && (!statusRecord.checkIns || statusRecord.checkIns.length === 0)) {
+                    // ถ้าสถานะเป็น 'มา' แต่ไม่มี checkIns ให้ถือว่า 'ขาด'
+                    summary['ขาด'].push(student.name);
+                } else {
+                    summary[statusRecord.status].push(student.name);
+                }
             } else {
                 summary['ยังไม่เช็คชื่อ'].push(student.name);
             }
         });
 
         // 4. สร้างข้อความสรุปสำหรับ LINE
-        let summaryMessage = `สรุปผลการเช็คชื่อ วันที่ ${new Date().toLocaleDateString('th-TH', { dateStyle: 'long' })}\n\n`;
-        summaryMessage += `✅ มา (${summary['มา'].length} คน): ${summary['มา'].length > 0 ? summary['มา'].join(', ') : '-'}\n`;
-        summaryMessage += `🟡 ลา (${summary['ลา'].length} คน): ${summary['ลา'].length > 0 ? summary['ลา'].join(', ') : '-'}\n`;
-        summaryMessage += `❌ ขาด (${summary['ขาด'].length} คน): ${summary['ขาด'].length > 0 ? summary['ขาด'].join(', ') : '-'}\n`;
-        summaryMessage += `⚪ ยังไม่เช็คชื่อ (${summary['ยังไม่เช็คชื่อ'].length} คน): ${summary['ยังไม่เช็คชื่อ'].length > 0 ? summary['ยังไม่เช็คชื่อ'].join(', ') : '-'}\n`;
+        let summaryMessage = `สรุปผลการเช็คชื่อ ม.1/10\nวันที่ ${new Date().toLocaleDateString('th-TH', { dateStyle: 'long' })}\n\n`;
+        summaryMessage += `✅ มา: ${summary['มา'].length} คน (${summary['มา'].join(', ') || 'ไม่มี'})\n`;
+        summaryMessage += `🟡 ลา: ${summary['ลา'].length} คน (${summary['ลา'].join(', ') || 'ไม่มี'})\n`;
+        summaryMessage += `❌ ขาด: ${summary['ขาด'].length} คน (${summary['ขาด'].join(', ') || 'ไม่มี'})\n`;
+        summaryMessage += `⏱️ สาย: ${summary['สาย'].length} คน (${summary['สาย'].join(', ') || 'ไม่มี'})`;
 
         console.log('Generated Summary Message:\n', summaryMessage);
 
@@ -277,7 +301,7 @@ app.post('/api/attendance/summary-and-notify', async (req, res) => {
 });
 
 
-// --- 5. Start Server ---
+// --- 5. เริ่มต้น Server ---
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
     console.log(`Local Backend URL: http://localhost:${PORT}`);
