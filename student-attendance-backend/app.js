@@ -3,7 +3,7 @@
 
 // นำเข้าโมดูลที่จำเป็น
 const express = require('express');
-const bodyParser = require('body-parser');
+const bodyParser = require('body-parser'); // ยังคงต้องใช้สำหรับ API อื่นๆ
 const cors = require('cors');
 const { Client, middleware } = require('@line/bot-sdk'); // LINE Bot SDK
 const admin = require('firebase-admin'); // Firebase Admin SDK
@@ -95,7 +95,8 @@ app.get('/', (req, res) => {
 // เปลี่ยนจาก /api/line-webhook เป็น /webhook
 console.log('Registering POST /webhook route...'); 
 app.post('/webhook', 
-    bodyParser.raw({ type: 'application/json' }), // ใช้ bodyParser.raw() สำหรับ LINE Webhook โดยเฉพาะ
+    // *** สำคัญ: ไม่ต้องใช้ bodyParser.raw() ที่นี่แล้ว ***
+    // LINE SDK middleware จะจัดการ Raw Body และแปลงเป็น JSON Object เอง
     middleware(lineConfig), // LINE middleware ต้องประมวลผลก่อน
     async (req, res) => {
         console.log('LINE Webhook Event Received at /webhook.'); 
@@ -103,16 +104,9 @@ app.post('/webhook',
         console.log('Request Path:', req.path); 
         console.log('Request URL:', req.originalUrl); 
         
-        let events;
-        try {
-            // req.body จะเป็น Buffer เมื่อใช้ bodyParser.raw()
-            // เราต้องแปลงกลับเป็น JSON Object ด้วยตัวเอง
-            events = JSON.parse(req.body.toString()).events;
-            console.log('Request Body (Parsed):', JSON.stringify(events, null, 2)); 
-        } catch (parseError) {
-            console.error('Error parsing LINE webhook raw body:', parseError);
-            return res.status(400).send('Invalid JSON in webhook body.');
-        }
+        // req.body ควรจะเป็น JSON Object อยู่แล้วหลังจาก LINE middleware ประมวลผล
+        const events = req.body.events; 
+        console.log('Request Body (Parsed):', JSON.stringify(req.body, null, 2)); // Log req.body ทั้งหมด
 
         if (!events || events.length === 0) {
             console.log('No events to process in webhook body.'); 
@@ -236,7 +230,7 @@ app.post('/attendance/record', async (req, res) => { // เดิม /api/attend
 });
 
 app.post('/attendance/summary-and-notify', async (req, res) => { // เดิม /api/attendance/summary-and-notify
-    console.log('POST /attendance/summary-and-notify request received.'); 
+    console.log('POST /api/attendance/summary-and-notify request received.'); 
     try {
         const studentsSnapshot = await db.collection('students')
             .where('class', '==', CLASS_TO_TRACK)
