@@ -304,4 +304,6 @@ app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
     console.log(`Local Backend URL: http://localhost:${PORT}`);
     console.log(`Local LINE Webhook endpoint: http://localhost:${PORT}/api/line-webhook`);
+console.log('Express app started and listening for requests.'); 
 });
+
