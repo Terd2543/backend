@@ -65,117 +65,126 @@ const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGIN
 // ตั้งค่า CORS เพื่ออนุญาตเฉพาะ Origin ที่กำหนด
 app.use(cors({
     origin: (origin, callback) => {
-        console.log(`CORS check: Request origin is "${origin}"`); // เพิ่ม Log: ตรวจสอบ Origin ของ Request
+        console.log(`CORS check: Request origin is "${origin}"`); 
         // อนุญาต Request ที่ไม่มี Origin (เช่น จาก Postman หรือ curl)
         if (!origin) return callback(null, true);
         // ตรวจสอบว่า Origin ที่เข้ามาอยู่ในรายการที่อนุญาตหรือไม่
         if (ALLOWED_ORIGINS.indexOf(origin) === -1) {
             const msg = `The CORS policy for this site does not allow access from the specified Origin: ${origin}. Allowed origins: ${ALLOWED_ORIGINS.join(', ')}`; 
-            console.error(msg); // เพิ่ม Log: แจ้ง Error เมื่อ Origin ไม่ได้รับอนุญาต
+            console.error(msg); 
             return callback(new Error(msg), false);
         }
-        console.log(`CORS check: Origin "${origin}" is allowed.`); // เพิ่ม Log: แจ้งเมื่อ Origin ได้รับอนุญาต
+        console.log(`CORS check: Origin "${origin}" is allowed.`); 
         return callback(null, true);
     }
 }));
-app.use(bodyParser.json()); // สำหรับ Parse JSON body ของ Request ที่เข้ามา
+
+// *** สำคัญ: ไม่ต้องใช้ app.use(bodyParser.json()); ตรงนี้แล้ว ***
+// เราจะใช้ bodyParser.json() สำหรับ API อื่นๆ และ bodyParser.raw() สำหรับ webhook
 
 // --- 4. API Endpoints (Routes) ---
 
-// 4.1. Root Endpoint: สำหรับทดสอบว่า Backend ทำงานอยู่ไหม
+// 4.1. Root Endpoint: สำหรับ Frontend (เดิมคือ /api)
+// เปลี่ยนจาก /api เป็น /
 app.get('/', (req, res) => {
-    console.log('GET / request received.'); // เพิ่ม Log
+    console.log('GET / request received (for Frontend base URL).'); 
     res.send('Attendance System Backend is running!');
 });
 
 // 4.2. LINE Webhook Endpoint: รับ Event จาก LINE Platform
-// Path นี้คือ /api/line-webhook
-console.log('Registering POST /api/line-webhook route...'); // เพิ่ม Log ตอนลงทะเบียน Route
-app.post('/api/line-webhook', middleware(lineConfig), async (req, res) => {
-    console.log('LINE Webhook Event Received at /api/line-webhook.'); // เพิ่ม Log เมื่อ Request เข้ามา
-    console.log('Request Method:', req.method); // เพิ่ม Log เพื่อดู Method (POST)
-    console.log('Request Path:', req.path); // เพิ่ม Log เพื่อดู Path ที่ Express เห็น
-    console.log('Request URL:', req.originalUrl); // เพิ่ม Log เพื่อดู URL เต็ม
-    console.log('Request Body:', JSON.stringify(req.body, null, 2)); // เพิ่ม Log เพื่อดู body ของ webhook
+// เปลี่ยนจาก /api/line-webhook เป็น /webhook
+console.log('Registering POST /webhook route...'); 
+app.post('/webhook', 
+    bodyParser.raw({ type: 'application/json' }), // ใช้ bodyParser.raw() สำหรับ LINE Webhook โดยเฉพาะ
+    middleware(lineConfig), // LINE middleware ต้องประมวลผลก่อน
+    async (req, res) => {
+        console.log('LINE Webhook Event Received at /webhook.'); 
+        console.log('Request Method:', req.method); 
+        console.log('Request Path:', req.path); 
+        console.log('Request URL:', req.originalUrl); 
+        
+        let events;
+        try {
+            // req.body จะเป็น Buffer เมื่อใช้ bodyParser.raw()
+            // เราต้องแปลงกลับเป็น JSON Object ด้วยตัวเอง
+            events = JSON.parse(req.body.toString()).events;
+            console.log('Request Body (Parsed):', JSON.stringify(events, null, 2)); 
+        } catch (parseError) {
+            console.error('Error parsing LINE webhook raw body:', parseError);
+            return res.status(400).send('Invalid JSON in webhook body.');
+        }
 
-    const events = req.body.events; // ดึงเหตุการณ์ทั้งหมดที่ LINE ส่งมา
+        if (!events || events.length === 0) {
+            console.log('No events to process in webhook body.'); 
+            return res.status(200).send('No events to process.');
+        }
 
-    if (!events || events.length === 0) {
-        console.log('No events to process in webhook body.'); // เพิ่ม Log
-        return res.status(200).send('No events to process.');
-    }
-
-    try {
-        await Promise.all(events.map(async (event) => {
-            if (event.type === 'follow') {
-                // เหตุการณ์: ผู้ใช้เพิ่ม LINE Bot เป็นเพื่อน
-                const userId = event.source.userId;
-                console.log(`User followed bot: ${userId}`);
-                try {
-                    // บันทึก userId ลง Firestore เพื่อใช้ส่งข้อความในอนาคต (ถ้าจำเป็น)
-                    await db.collection('lineUsers').doc(userId).set({
-                        userId: userId,
-                        timestamp: admin.firestore.FieldValue.serverTimestamp()
-                    }, { merge: true }); // merge: true เพื่ออัปเดตถ้ามีอยู่แล้ว
-                    console.log(`Saved userId: ${userId} to Firestore.`);
-                    // ส่งข้อความต้อนรับกลับไปให้ผู้ใช้
-                    return lineClient.replyMessage(event.replyToken, {
-                        type: 'text',
-                        text: 'ยินดีต้อนรับสู่ระบบเช็คชื่อครับ! หากมีข้อสงสัยติดต่อครูประจำชั้นได้เลยครับ'
-                    });
-                } catch (error) {
-                    console.error('Error saving userId or sending welcome message:', error);
+        try {
+            await Promise.all(events.map(async (event) => {
+                if (event.type === 'follow') {
+                    const userId = event.source.userId;
+                    console.log(`User followed bot: ${userId}`);
+                    try {
+                        await db.collection('lineUsers').doc(userId).set({
+                            userId: userId,
+                            timestamp: admin.firestore.FieldValue.serverTimestamp()
+                        }, { merge: true }); 
+                        console.log(`Saved userId: ${userId} to Firestore.`);
+                        return lineClient.replyMessage(event.replyToken, {
+                            type: 'text',
+                            text: 'ยินดีต้อนรับสู่ระบบเช็คชื่อครับ! หากมีข้อสงสัยติดต่อครูประจำชั้นได้เลยครับ'
+                        });
+                    } catch (error) {
+                        console.error('Error saving userId or sending welcome message:', error);
+                    }
+                } else if (event.type === 'unfollow') {
+                    const userId = event.source.userId;
+                    console.log(`User unfollowed bot: ${userId}`);
+                    try {
+                        await db.collection('lineUsers').doc(userId).delete();
+                        console.log(`Deleted userId: ${userId} from Firestore.`);
+                    } catch (error) {
+                        console.error('Error deleting userId on unfollow:', error);
+                    }
+                } else if (event.type === 'message' && event.message.type === 'text') {
+                    const userId = event.source.userId;
+                    const userMessage = event.message.text;
+                    console.log(`Received message from ${userId}: "${userMessage}"`);
+                    // คุณสามารถเพิ่ม logic สำหรับการตอบกลับข้อความหรือรับคำสั่งจากผู้ใช้ได้ที่นี่
+                    // เช่น:
+                    // if (userMessage.toLowerCase() === 'สวัสดี') {
+                    //     await lineClient.replyMessage(event.replyToken, { type: 'text', text: 'สวัสดีครับ!' });
+                    // } else {
+                    //     await lineClient.replyMessage(event.replyToken, { type: 'text', text: 'ไม่เข้าใจคำสั่งครับ' });
+                    // }
                 }
-            } else if (event.type === 'unfollow') {
-                // เหตุการณ์: ผู้ใช้เลิกเป็นเพื่อนกับ LINE Bot
-                const userId = event.source.userId;
-                console.log(`User unfollowed bot: ${userId}`);
-                // คุณอาจจะต้องการลบ userId นี้ออกจาก Firestore ด้วย
-                try {
-                    await db.collection('lineUsers').doc(userId).delete();
-                    console.log(`Deleted userId: ${userId} from Firestore.`);
-                } catch (error) {
-                    console.error('Error deleting userId on unfollow:', error);
-                }
-            } else if (event.type === 'message' && event.message.type === 'text') {
-                // เหตุการณ์: ผู้ใช้ส่งข้อความมาหา LINE Bot
-                const userId = event.source.userId;
-                const userMessage = event.message.text;
-                console.log(`Received message from ${userId}: "${userMessage}"`);
+            }));
+            res.status(200).send('Events processed.'); 
+        }
+        catch (err) {
+            console.error('Error processing LINE webhook events:', err);
+            res.status(500).end(); 
+        }
+    }
+);
 
-                // คุณสามารถเพิ่ม logic สำหรับการตอบกลับข้อความหรือรับคำสั่งจากผู้ใช้ได้ที่นี่
-                // เช่น:
-                // if (userMessage.toLowerCase() === 'สวัสดี') {
-                //     await lineClient.replyMessage(event.replyToken, { type: 'text', text: 'สวัสดีครับ!' });
-                // } else {
-                //     await lineClient.replyMessage(event.replyToken, { type: 'text', text: 'ไม่เข้าใจคำสั่งครับ' });
-                // }
-            }
-            // เพิ่มเงื่อนไขสำหรับ event type อื่นๆ ที่คุณต้องการจัดการได้ที่นี่
-        }));
-        res.status(200).send('Events processed.'); // ส่ง 200 OK กลับไปให้ LINE Platform
-    }
-    catch (err) {
-        console.error('Error processing LINE webhook events:', err);
-        res.status(500).end(); // ส่ง Error กลับไปหากมีปัญหา
-    }
-});
+// *** สำคัญ: ใช้ bodyParser.json() สำหรับ API อื่นๆ ที่ต้องการ JSON body ***
+app.use(bodyParser.json()); 
 
 // 4.3. API สำหรับการจัดการการเช็คชื่อของนักเรียน
-
-// ดึงรายชื่อนักเรียนทั้งหมดในชั้นเรียนที่กำหนด (จาก CLASS_TO_TRACK)
-app.get('/api/attendance/students', async (req, res) => {
-    console.log('GET /api/attendance/students request received.'); // เพิ่ม Log
+// เปลี่ยน Path API อื่นๆ ให้ไม่มี /api นำหน้าแล้ว
+app.get('/attendance/students', async (req, res) => { // เดิม /api/attendance/students
+    console.log('GET /attendance/students request received.'); 
     try {
         const studentsRef = db.collection('students');
         const snapshot = await studentsRef.where('class', '==', CLASS_TO_TRACK).get();
         if (snapshot.empty) {
             console.log('No matching students found for class:', CLASS_TO_TRACK);
-            return res.status(200).json([]); // คืนค่า array เปล่าถ้าไม่พบนักเรียน
+            return res.status(200).json([]); 
         }
         const students = snapshot.docs.map(doc => ({
-            id: doc.id, // ใช้ ID ของ Document (ซึ่งควรเป็นเลขที่นักเรียน)
-            ...doc.data() // ดึงข้อมูลอื่นๆ (name, class)
+            id: doc.id, 
+            ...doc.data() 
         }));
         res.status(200).json(students);
     } catch (error) {
@@ -184,46 +193,40 @@ app.get('/api/attendance/students', async (req, res) => {
     }
 });
 
-// บันทึกสถานะการเช็คชื่อของนักเรียน (มา, ลา, ขาด, สาย)
-// API นี้จะรับข้อมูลสถานะรวมของนักเรียนสำหรับวันนั้นๆ
-app.post('/api/attendance/record', async (req, res) => {
-    console.log('POST /api/attendance/record request received.'); // เพิ่ม Log
-    const { studentId, studentName, date, status, checkIns } = req.body; // รับ checkIns array เข้ามาด้วย
+app.post('/attendance/record', async (req, res) => { // เดิม /api/attendance/record
+    console.log('POST /attendance/record request received.'); 
+    const { studentId, studentName, date, status, checkIns } = req.body; 
     
     if (!studentId || !date || !status || !studentName) {
-        console.error('Missing required fields for attendance record.'); // เพิ่ม Log
+        console.error('Missing required fields for attendance record.'); 
         return res.status(400).json({ message: 'Missing required fields: studentId, date, status, studentName' });
     }
 
-    const docId = `${studentId}-${date}`; // สร้าง Document ID สำหรับการเช็คชื่อรายวัน
+    const docId = `${studentId}-${date}`; 
     const attendanceRef = db.collection('attendance').doc(docId);
 
     try {
-        // Logic สำหรับการอัปเดตข้อมูลตามสถานะที่ได้รับ
         if (status === 'มา') {
-            // ถ้าสถานะเป็น 'มา', ให้อัปเดต checkIns array
-            // เราจะใช้ checkIns array ที่ส่งมาจาก Frontend เป็นสถานะล่าสุดสำหรับ 'มา'
             await attendanceRef.set({
                 studentId: studentId,
                 studentName: studentName,
                 date: date,
-                status: 'มา', // ตั้งสถานะเป็น 'มา' โดยตรง
-                checkIns: checkIns || [], // ใช้ array จาก Frontend (อาจจะว่างเปล่าถ้ายังไม่มีการเช็คอิน)
-                timestamp: admin.firestore.FieldValue.serverTimestamp() // บันทึกเวลาที่อัปเดต
-            }, { merge: true }); // merge: true เพื่อรวมข้อมูลกับ Document ที่มีอยู่แล้ว
+                status: 'มา', 
+                checkIns: checkIns || [], 
+                timestamp: admin.firestore.FieldValue.serverTimestamp() 
+            }, { merge: true }); 
         } else {
-            // สำหรับ 'ลา', 'ขาด', 'สาย', ให้ล้าง checkIns และตั้งค่าสถานะ
             await attendanceRef.set({
                 studentId: studentId,
                 studentName: studentName,
                 date: date,
                 status: status,
-                checkIns: [], // ล้าง checkIns สำหรับสถานะเหล่านี้
+                checkIns: [], 
                 timestamp: admin.firestore.FieldValue.serverTimestamp()
             }, { merge: true });
         }
 
-        console.log('Attendance recorded successfully for student:', studentId); // เพิ่ม Log
+        console.log('Attendance recorded successfully for student:', studentId); 
         res.status(200).json({ message: 'Attendance recorded successfully!' });
 
     } catch (error) {
@@ -232,54 +235,44 @@ app.post('/api/attendance/record', async (req, res) => {
     }
 });
 
-
-// สรุปผลการเช็คชื่อประจำวันและแจ้งเตือนผ่าน LINE Broadcast
-app.post('/api/attendance/summary-and-notify', async (req, res) => {
-    console.log('POST /api/attendance/summary-and-notify request received.'); // เพิ่ม Log
+app.post('/attendance/summary-and-notify', async (req, res) => { // เดิม /api/attendance/summary-and-notify
+    console.log('POST /attendance/summary-and-notify request received.'); 
     try {
-        // 1. ดึงข้อมูลนักเรียนทั้งหมดในชั้นเรียนที่ติดตาม
         const studentsSnapshot = await db.collection('students')
             .where('class', '==', CLASS_TO_TRACK)
             .get();
         const allStudents = studentsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        // สร้าง Map เพื่อหาชื่อนักเรียนจาก ID ได้ง่ายขึ้น
         const studentNamesMap = new Map(allStudents.map(s => [s.id, s.name]));
 
-        // 2. ดึงสถานะการเช็คชื่อล่าสุดของแต่ละคนสำหรับวันนี้
         const today = new Date();
-        today.setHours(0, 0, 0, 0); // ตั้งค่าเวลาเริ่มต้นของวันนี้ (00:00:00)
+        today.setHours(0, 0, 0, 0); 
         const tomorrow = new Date(today);
-        tomorrow.setDate(tomorrow.getDate() + 1); // ตั้งค่าเวลาเริ่มต้นของวันพรุ่งนี้
+        tomorrow.setDate(tomorrow.getDate() + 1); 
 
         const attendanceSnapshot = await db.collection('attendance')
-            .where('date', '==', `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`) // ใช้ date string ที่ Frontend ส่งมา
+            .where('date', '==', `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`) 
             .get();
 
-        const latestStatus = {}; // เก็บสถานะล่าสุดของแต่ละ studentId
+        const latestStatus = {}; 
         attendanceSnapshot.docs.forEach(doc => {
             const data = doc.data();
-            // ตรวจสอบว่ามีสถานะสำหรับนักเรียนคนนี้แล้วหรือไม่ หรือสถานะที่พบใหม่เป็นสถานะที่ใหม่กว่า
-            // (ในกรณีที่อาจมีการบันทึกซ้ำในวันเดียวกัน)
             if (!latestStatus[data.studentId] || (data.timestamp && latestStatus[data.studentId].timestamp && latestStatus[data.studentId].timestamp.toDate() < data.timestamp.toDate())) {
                 latestStatus[data.studentId] = data;
             }
         });
 
-        // 3. จัดกลุ่มสถานะและสร้างข้อความสรุป
         const summary = {
             'มา': [],
             'ลา': [],
             'ขาด': [],
-            'สาย': [], // เพิ่มสถานะ 'สาย' เข้ามา
-            'ยังไม่เช็คชื่อ': [] // สำหรับนักเรียนที่ไม่มีสถานะบันทึกไว้ในวันนี้เลย
+            'สาย': [], 
+            'ยังไม่เช็คชื่อ': [] 
         };
 
         allStudents.forEach(student => {
             const statusRecord = latestStatus[student.id];
             if (statusRecord && statusRecord.status) {
-                // ตรวจสอบว่ามี checkIns สำหรับสถานะ 'มา' หรือไม่
                 if (statusRecord.status === 'มา' && (!statusRecord.checkIns || statusRecord.checkIns.length === 0)) {
-                    // ถ้าสถานะเป็น 'มา' แต่ไม่มี checkIns ให้ถือว่า 'ขาด'
                     summary['ขาด'].push(student.name);
                 } else {
                     summary[statusRecord.status].push(student.name);
@@ -289,7 +282,6 @@ app.post('/api/attendance/summary-and-notify', async (req, res) => {
             }
         });
 
-        // 4. สร้างข้อความสรุปสำหรับ LINE
         let summaryMessage = `สรุปผลการเช็คชื่อ ม.1/10\nวันที่ ${new Date().toLocaleDateString('th-TH', { dateStyle: 'long' })}\n\n`;
         summaryMessage += `✅ มา: ${summary['มา'].length} คน (${summary['มา'].join(', ') || 'ไม่มี'})\n`;
         summaryMessage += `🟡 ลา: ${summary['ลา'].length} คน (${summary['ลา'].join(', ') || 'ไม่มี'})\n`;
@@ -298,8 +290,6 @@ app.post('/api/attendance/summary-and-notify', async (req, res) => {
 
         console.log('Generated Summary Message:\n', summaryMessage);
 
-        // 5. ส่งข้อความ Broadcast ไปยังผู้ใช้ LINE ทั้งหมดที่ Bot เป็นเพื่อน
-        // LINE API จะส่งข้อความไปยังทุกคนที่ 'Follow' บอทนี้อยู่แล้ว
         const broadcastResult = await lineClient.broadcast({
             type: 'text',
             text: summaryMessage
@@ -318,19 +308,19 @@ app.post('/api/attendance/summary-and-notify', async (req, res) => {
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
     console.log(`Local Backend URL: http://localhost:${PORT}`);
-    console.log(`Local LINE Webhook endpoint: http://localhost:${PORT}/api/line-webhook`);
-    console.log('Express app started and listening for requests.'); // เพิ่ม Log เมื่อ Server เริ่มทำงาน
+    console.log(`Local LINE Webhook endpoint: http://localhost:${PORT}/webhook`); // อัปเดต Log
+    console.log('Express app started and listening for requests.'); 
 });
 
 // --- 6. Global Error Handler (สำหรับจับ Error ที่ไม่ได้ถูกจับใน Route) ---
 app.use((err, req, res, next) => {
-    console.error('Unhandled Error:', err.stack); // Log stack trace ของ Error
+    console.error('Unhandled Error:', err.stack); 
     res.status(500).send('Something broke!');
 });
 
 // --- 7. 404 Not Found Handler (ต้องอยู่ท้ายสุดของ Routes ทั้งหมด) ---
 // ส่วนนี้จะทำงานเมื่อไม่มี Route ใดๆ ที่ตรงกับ Request ที่เข้ามา
 app.use((req, res, next) => {
-    console.log(`404 Not Found: Request Method: ${req.method}, Path: ${req.path}, Original URL: ${req.originalUrl}`); // เพิ่ม Log
+    console.log(`404 Not Found: Request Method: ${req.method}, Path: ${req.path}, Original URL: ${req.originalUrl}`); 
     res.status(404).send('Not Found');
 });
