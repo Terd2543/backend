@@ -65,13 +65,16 @@ const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGIN
 // ตั้งค่า CORS เพื่ออนุญาตเฉพาะ Origin ที่กำหนด
 app.use(cors({
     origin: (origin, callback) => {
+        console.log(`CORS check: Request origin is "${origin}"`); // เพิ่ม Log: ตรวจสอบ Origin ของ Request
         // อนุญาต Request ที่ไม่มี Origin (เช่น จาก Postman หรือ curl)
         if (!origin) return callback(null, true);
         // ตรวจสอบว่า Origin ที่เข้ามาอยู่ในรายการที่อนุญาตหรือไม่
         if (ALLOWED_ORIGINS.indexOf(origin) === -1) {
-            const msg = `The CORS policy for this site does not allow access from the specified Origin: ${origin}`;
+            const msg = `The CORS policy for this site does not allow access from the specified Origin: ${origin}. Allowed origins: ${ALLOWED_ORIGINS.join(', ')}`; 
+            console.error(msg); // เพิ่ม Log: แจ้ง Error เมื่อ Origin ไม่ได้รับอนุญาต
             return callback(new Error(msg), false);
         }
+        console.log(`CORS check: Origin "${origin}" is allowed.`); // เพิ่ม Log: แจ้งเมื่อ Origin ได้รับอนุญาต
         return callback(null, true);
     }
 }));
@@ -81,17 +84,24 @@ app.use(bodyParser.json()); // สำหรับ Parse JSON body ของ Requ
 
 // 4.1. Root Endpoint: สำหรับทดสอบว่า Backend ทำงานอยู่ไหม
 app.get('/', (req, res) => {
+    console.log('GET / request received.'); // เพิ่ม Log
     res.send('Attendance System Backend is running!');
 });
 
 // 4.2. LINE Webhook Endpoint: รับ Event จาก LINE Platform
 // Path นี้คือ /api/line-webhook
+console.log('Registering POST /api/line-webhook route...'); // เพิ่ม Log ตอนลงทะเบียน Route
 app.post('/api/line-webhook', middleware(lineConfig), async (req, res) => {
-    console.log('LINE Webhook Event Received.');
+    console.log('LINE Webhook Event Received at /api/line-webhook.'); // เพิ่ม Log เมื่อ Request เข้ามา
+    console.log('Request Method:', req.method); // เพิ่ม Log เพื่อดู Method (POST)
+    console.log('Request Path:', req.path); // เพิ่ม Log เพื่อดู Path ที่ Express เห็น
+    console.log('Request URL:', req.originalUrl); // เพิ่ม Log เพื่อดู URL เต็ม
+    console.log('Request Body:', JSON.stringify(req.body, null, 2)); // เพิ่ม Log เพื่อดู body ของ webhook
 
     const events = req.body.events; // ดึงเหตุการณ์ทั้งหมดที่ LINE ส่งมา
 
     if (!events || events.length === 0) {
+        console.log('No events to process in webhook body.'); // เพิ่ม Log
         return res.status(200).send('No events to process.');
     }
 
@@ -155,6 +165,7 @@ app.post('/api/line-webhook', middleware(lineConfig), async (req, res) => {
 
 // ดึงรายชื่อนักเรียนทั้งหมดในชั้นเรียนที่กำหนด (จาก CLASS_TO_TRACK)
 app.get('/api/attendance/students', async (req, res) => {
+    console.log('GET /api/attendance/students request received.'); // เพิ่ม Log
     try {
         const studentsRef = db.collection('students');
         const snapshot = await studentsRef.where('class', '==', CLASS_TO_TRACK).get();
@@ -176,9 +187,11 @@ app.get('/api/attendance/students', async (req, res) => {
 // บันทึกสถานะการเช็คชื่อของนักเรียน (มา, ลา, ขาด, สาย)
 // API นี้จะรับข้อมูลสถานะรวมของนักเรียนสำหรับวันนั้นๆ
 app.post('/api/attendance/record', async (req, res) => {
+    console.log('POST /api/attendance/record request received.'); // เพิ่ม Log
     const { studentId, studentName, date, status, checkIns } = req.body; // รับ checkIns array เข้ามาด้วย
     
     if (!studentId || !date || !status || !studentName) {
+        console.error('Missing required fields for attendance record.'); // เพิ่ม Log
         return res.status(400).json({ message: 'Missing required fields: studentId, date, status, studentName' });
     }
 
@@ -210,6 +223,7 @@ app.post('/api/attendance/record', async (req, res) => {
             }, { merge: true });
         }
 
+        console.log('Attendance recorded successfully for student:', studentId); // เพิ่ม Log
         res.status(200).json({ message: 'Attendance recorded successfully!' });
 
     } catch (error) {
@@ -221,6 +235,7 @@ app.post('/api/attendance/record', async (req, res) => {
 
 // สรุปผลการเช็คชื่อประจำวันและแจ้งเตือนผ่าน LINE Broadcast
 app.post('/api/attendance/summary-and-notify', async (req, res) => {
+    console.log('POST /api/attendance/summary-and-notify request received.'); // เพิ่ม Log
     try {
         // 1. ดึงข้อมูลนักเรียนทั้งหมดในชั้นเรียนที่ติดตาม
         const studentsSnapshot = await db.collection('students')
@@ -304,6 +319,18 @@ app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
     console.log(`Local Backend URL: http://localhost:${PORT}`);
     console.log(`Local LINE Webhook endpoint: http://localhost:${PORT}/api/line-webhook`);
-console.log('Express app started and listening for requests.'); 
+    console.log('Express app started and listening for requests.'); // เพิ่ม Log เมื่อ Server เริ่มทำงาน
 });
 
+// --- 6. Global Error Handler (สำหรับจับ Error ที่ไม่ได้ถูกจับใน Route) ---
+app.use((err, req, res, next) => {
+    console.error('Unhandled Error:', err.stack); // Log stack trace ของ Error
+    res.status(500).send('Something broke!');
+});
+
+// --- 7. 404 Not Found Handler (ต้องอยู่ท้ายสุดของ Routes ทั้งหมด) ---
+// ส่วนนี้จะทำงานเมื่อไม่มี Route ใดๆ ที่ตรงกับ Request ที่เข้ามา
+app.use((req, res, next) => {
+    console.log(`404 Not Found: Request Method: ${req.method}, Path: ${req.path}, Original URL: ${req.originalUrl}`); // เพิ่ม Log
+    res.status(404).send('Not Found');
+});
