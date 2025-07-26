@@ -13,7 +13,7 @@ require('dotenv').config(); // โหลด Environment Variables จากไ�
 // ส่วนนี้จัดการการโหลด Service Account Key
 // - หากรันบน Render/Cloud: จะอ่านค่าจาก Environment Variable ชื่อ FIREBASE_SERVICE_ACCOUNT_KEY
 // - หากรันในเครื่อง (Local): จะอ่านจากไฟล์ JSON ที่ระบุ Path ไว้
-const serviceAccountLocalPath = './your-project-name-firebase-adminsdk-xxxxx-xxxxxxxxxx.json'; 
+const serviceAccountLocalPath = './service-b6c91-firebase-adminsdk-fbsvc-bd63ab59b8.json';
 // *** สำคัญ: เปลี่ยนชื่อไฟล์นี้ให้ตรงกับชื่อไฟล์ Service Account Key ที่คุณดาวน์โหลดมาจริงๆ ***
 // ตัวอย่าง: './service-b6c91-firebase-adminsdk-fbsvc-bd63ab59b8.json'
 
