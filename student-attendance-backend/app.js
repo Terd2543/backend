@@ -16,8 +16,8 @@ require('dotenv').config(); // โหลด Environment Variables จากไ�
 const serviceAccount = {
   "type": "service_account",
   "project_id": "service-b6c91",
-  "private_key_id": "bd63ab59b804d6ba4d5937e09b1ae650ae0f919f",
-  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQC7lDV4CHGSyKCw\nuwtg3QubrK12aECNYvd/ABx6jG94iJxBHs2wvUxcwoeJomjw1NH9Kc4o2GVCwAYv\n2teYv4mgndH7xsreZyutIxZA70bkCEB8GwtTn3Q2R+1SFqEXF4M5BlGaEHatpVyH\nOmylXNv0kO1UgBFn8Kzd7RXg4/S26V7E7n3U2vGNSs3tED4Ag8n6FvbKWUemQ77u\njt4bKyLjOt+3ej3geIVL1+aTzX4YZsi7Fy7466gBEFe5afk0a+qsMhWHZ8p5K9/N\nZqoVL/QLMLQ0zqspgweNMK9jtoqrvcjdMxkz4KEB2ILpp5nRT333OTuzaM3QBrzV\nUgJ4JbexAgMBAAECggEAD/eL6Z2TLvLXAtQyu411Vhk6/Sl4o50saVCBta8yM4KY\nnzTXcddbPBYiLwWp6ySI6QTfxwhMh+o/XJMQGrEX+2atUvVwzvR3Rxo45B26EHt6\nibxMZYZ2mcKobkr9oWQsYY4RI8BWnQdgOr6VZ8OuXkFFgnwR5aG0a7VC6ubC+oLG\n1KGL4O1zrJl4vEmAszDL70/KiHQlL7eBY9oOyGLcyd21a/yZF1y/k6THK6Zh4r6+\nO89V2/g9ZHW0FOmr8z/bq1C7EsCd05SSXEZ7+sP+KQg5PmNziplAGzMaka2My2t+\nY4AA49UjK07/Vgfd57v9LH/A75BIhlN+dKDCOHQS5QKBgQDhv6z6ApbGunxW9QNZ\nSEXR5nWTKgs/fJBDc1tD/fPRNOBy95z06DKrqYHqpf3yhmbKGUtLyii4K2NSsYew\nQpJ+5lb/9Y7jg5y1kHfqps2TUcZPlTRotuu1KmYxUFY0DEOaqQDyF56HN3Ytl9TR\nSG1kRr8r7zWLT/52avpdRDRvdwKBgQDUtx23SayhYbDle3em1nqaFJ2pLwSdpBgA\n2QQkL1TMu5xh7vlK4XINyJK9yK3RutAa7gLqRbqyYkSmopImSIZ5fr7FV3QCmnDa\nXphfK7eSHmaug7ApTDyl8ttDElVw2thh4pYLuyB90b7KKZ1e5+XiyG89PNfe/hl5\nr9ie3ELsFwKBgBvjMdswtq+WGgYj/mXpJ7bmYV/ssbcGDExI091yYcxWW+PX8uvO\nQ3QxXHtARj7Pm6MbvNGAB8e4lGyCweBkWPSUP+seyqgQeitzzVyPfpXUZEswg2js\nL/IRas5svjlvymowto0xncPWdiLrvr6b0+evVa53voWXPDgkvwkGg/PBAoGBALS0\nt3btDM2wizH4uMYwMMlSuDlw6w/sxkN6GU2QNA8VVp3QAVI+wcC54wd9Q0UH2iD2\nj91rzVYbq0yQkW4acLsoFHLbf39yqmqor/Mx1Wo5j2u0DeSXknI8JU8OdS1BjU9i\nyas/ljOtCtL9lWZ5xM7rDa1NUeprnULGQ1V5sxSTAoGAbVAEAekzqI8MdOWeClFn\nzr4K7gCQfh8vvzw1dmH5AvcXt8NRFbuBlpHV5I9UTqwYtyVr0s89IY6nITf0n+Dt\n/WWsdxEAwiUrnZ3e2yl8Sxi/0PSjj3C30eviw17wgEXEt46je3zC4B3quy4Tl3SU\n5p7bfDG/j/zpbegsTV97UGY=\n-----END PRIVATE KEY-----\n",
+  "private_key_id": "25742d742836b74c87b872da4fb709368bb00858", // <-- ตรวจสอบว่าตรงกับ Key ล่าสุดที่คุณให้มา
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQCzEsB+RqC8dWHu\nMGe4QG+7k2rxiz8cRxZz9d7uY4p4BULiunEN9YRg03wgI2Nhywh3/O2XhylTG/F2\nPgPQQ2HQIK7ahDokiu2cxmiNb6DkugeAziJExKp7iC91waGhreUcfiK6Cji4KVj9\nj1rUc4ljynO98n5Rt70tY7xDc/bcrmtNO7Zb0suRKGLPq8K1NLE6vIkXGawVLgYV\nxg4Rxla018b0Sz3g7EnYj9IEDAdShQI3nxi7AhLQ+yV5/PgPie8Rzg+H0gsTvpUQ\nKe3u6iYXCglLfeVJ6uM2zGXeEAn0dZQMsFjCbQhFrZIc6RaEvYJ+ojCODMiPqpfh\n86V8ipNjAgMBAAECggEAISvcFIgoxkBIP8Mfs3XcPLb2HIBa1HYmppxpC2fNAqaW\n2UEIKDnOp9EFMT7c7gSaMP/dUzBqa0bF181tD2sr903WlgvgaVyC34OxYmHHQBdl\nxGpq1qpHmlKD2CBiPHzl7/09mZDDKPofzfh8LtaoIKAkCI+e7qxGkt3ixev5Uq98\nOYTM4Lyz0i9jF6pj4O257l4b+b/KOT6cSWaHo0d67YcTs9tVeZRSldBa0DvLv1cu\naILkxbLRb/UYh38djTgtEWgZ7jwLi7xdQC0laNR2n6K5ihjfvgbItjDBNiCSn28A\n1W8fNXvoSf4ShW/MryiwcC1Rwhf54rFiEpqxAm30wQKBgQD73+VWgBnwcKVLJzSX\nJiLG6EYS/y9C5gHfz3r6ciCCr3M1ue4GUwEaGHCpAqjknUMQnM9PqfA/OstxNZzY\nYZcfAXHgWyNlbxZlRtlR37ts6KigRfxBFw4Eqn0RvabR2TnN3P++TS3aKPiOEc4i\n22VICEHcsBGOE1eRsfmvKaouKQKBgQC2AZoObcgchWkV/bYatBDCK34WccCol9UR\nm9ku6iWSH3+zqjtH0IRG5saqIbjrTwyDiRIkJsGLUz50fI9AvMHtIYrtgGY84tMD\n6dK6IVzKIh8WQe8Wg95/onZ6sqKPk5DK5o9bLusL6R6x0C45Glf722O+wAA0m/iA\nU0154ouOqwKBgHUxJscJkYgjEXWXR0vwjYvY9QnPvBC3bjXRltnCkkfcFJHx8cL1\nifS3XGv29dhxJ4wqOfdKDaON2qzREipHtgXSKUcHgL+oYVY8Ec+bdtxkoFj6VzV9\n4aLgJJNFl8HZ/aBAbKoBxQzVtVh9BlmHlWdfmC1zqqddbog2tAMBMtKJAoGASo+d\nbQvMTuLYignF8GqT8veeT9OJ+Yc54lzWPEHv4kzFI/U5E9J4XhNsj4YBG2Tm23vr\n0qON5mXT0CS3Cu5JA7waDfHr8EV77L59dYL1YFlaIuQf7jlXjTIhF2LW9bqeNoD9\neX1fDSITUQTX6sy//o2B70L40pSS2P9HXgdQ5MECgYAWIXycmeM3rfE+XqCltSsX\njnGxZA9iLnfeZTFPEQeRDnRiTR6wiWDa5oZ2Die5PCQqzdbj0Ha1archm7n4troK\n9Ei3oFLQrbAko0o+ZBGSrwY0DLgI+Edbw4YEbnaR55DH9MBAkKU+69Df5EDYO0Nt\nPSc+rjDvfroCmxSK7GeZ+A==\n-----END PRIVATE KEY-----\n", 
   "client_email": "firebase-adminsdk-fbsvc@service-b6c91.iam.gserviceaccount.com",
   "client_id": "107379482595606642903",
   "auth_uri": "https://accounts.google.com/o/oauth2/auth",
@@ -171,12 +171,15 @@ app.get('/attendance/students', async (req, res) => { // เดิม /api/atten
     console.log('GET /attendance/students request received.'); 
     try {
         const studentsRef = db.collection('students');
-        const snapshot = await studentsRef.where('class', '==', CLASS_TO_TRACK).get();
-        if (snapshot.empty) {
-            console.log('No matching students found for class:', CLASS_TO_TRACK);
+        // เพิ่ม query เพื่อดึงเฉพาะนักเรียนในชั้น ม.1/10
+        const qStudents = query(studentsRef, where('class', '==', 'ม.1/10'));
+        const studentSnapshot = await getDocs(qStudents); 
+
+        if (studentSnapshot.empty) {
+            console.log('No matching students found for class: ม.1/10');
             return res.status(200).json([]); 
         }
-        const students = snapshot.docs.map(doc => ({
+        const students = studentSnapshot.docs.map(doc => ({
             id: doc.id, 
             ...doc.data() 
         }));
@@ -206,7 +209,7 @@ app.post('/attendance/record', async (req, res) => { // เดิม /api/attend
                 studentName: studentName,
                 date: date,
                 status: 'มา', 
-                checkIns: checkIns || [], 
+                checkIns: checkIns || [], // รับ checkIns array เข้ามาด้วย
                 timestamp: admin.firestore.FieldValue.serverTimestamp() 
             }, { merge: true }); 
         } else {
@@ -215,7 +218,7 @@ app.post('/attendance/record', async (req, res) => { // เดิม /api/attend
                 studentName: studentName,
                 date: date,
                 status: status,
-                checkIns: [], 
+                checkIns: [], // ล้าง checkIns สำหรับสถานะเหล่านี้
                 timestamp: admin.firestore.FieldValue.serverTimestamp()
             }, { merge: true });
         }
@@ -230,7 +233,7 @@ app.post('/attendance/record', async (req, res) => { // เดิม /api/attend
 });
 
 app.post('/attendance/summary-and-notify', async (req, res) => { // เดิม /api/attendance/summary-and-notify
-    console.log('POST /api/attendance/summary-and-notify request received.'); 
+    console.log('POST /attendance/summary-and-notify request received.'); 
     try {
         const studentsSnapshot = await db.collection('students')
             .where('class', '==', CLASS_TO_TRACK)
@@ -267,6 +270,7 @@ app.post('/attendance/summary-and-notify', async (req, res) => { // เดิม
             const statusRecord = latestStatus[student.id];
             if (statusRecord && statusRecord.status) {
                 if (statusRecord.status === 'มา' && (!statusRecord.checkIns || statusRecord.checkIns.length === 0)) {
+                    // ถ้าสถานะเป็น 'มา' แต่ไม่มี checkIns ให้ถือว่า 'ขาด'
                     summary['ขาด'].push(student.name);
                 } else {
                     summary[statusRecord.status].push(student.name);
@@ -302,7 +306,7 @@ app.post('/attendance/summary-and-notify', async (req, res) => { // เดิม
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
     console.log(`Local Backend URL: http://localhost:${PORT}`);
-    console.log(`Local LINE Webhook endpoint: http://localhost:${PORT}/webhook`); // อัปเดต Log
+    console.log(`Local LINE Webhook endpoint: http://localhost:${PORT}/webhook`); 
     console.log('Express app started and listening for requests.'); 
 });
 
@@ -314,7 +318,7 @@ app.use((err, req, res, next) => {
 
 // --- 7. 404 Not Found Handler (ต้องอยู่ท้ายสุดของ Routes ทั้งหมด) ---
 // ส่วนนี้จะทำงานเมื่อไม่มี Route ใดๆ ที่ตรงกับ Request ที่เข้ามา
-app.use((req, res, next) => {
+app.use((req, res, next) => { // แก้ไข: เพิ่ม next กลับมา
     console.log(`404 Not Found: Request Method: ${req.method}, Path: ${req.path}, Original URL: ${req.originalUrl}`); 
     res.status(404).send('Not Found');
 });
